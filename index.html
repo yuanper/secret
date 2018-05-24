@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0,user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>不能说的秘密</title>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <script type="text/javascript">
+        //得到手机屏幕的宽度
+        let htmlWidth = document.documentElement.clientWidth || document.body.clientWidth;
+        if (htmlWidth > 750) { htmlWidth = 750 }
+        //得到html的Dom元素
+        let htmlDom = document.getElementsByTagName('html')[0];
+        //设置根元素字体大小
+        htmlDom.style.fontSize = htmlWidth / 20 + 'px';
+    </script>
+    
+    <style>
+        *{
+            padding: 0;
+            margin: 0;
+        }
+        html {
+            background: #ded;
+            padding: 0 5px;
+        }
+        .head {
+            height: 3rem;
+            line-height: 3rem;
+            font-size: 18px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .title{
+            line-height: 2rem;
+            text-align: center;
+            font-size: 14px;
+            background: #409EFF;
+            margin-bottom: 10px;
+            color: #fff;
+        }
+        .el-row{
+            margin-bottom: 20px;
+        }
+        .button{
+            text-align: center
+        }
+    </style>
+</head>
+<body>
+    <div id="secret">
+        <div class="head">不能说的秘密</div>
+        <el-row>
+          <el-col :span="16">
+            <el-input v-model="searchTitle" placeholder="请输入要查找的秘密标题"></el-input>
+          </el-col>
+          <el-col :span="8">
+                &nbsp;&nbsp;&nbsp;&nbsp;<el-button type="primary" icon="el-icon-search" @click="search">搜索</el-button>
+          </el-col>
+        </el-row>
+        <div class="content">
+            <div>
+                <el-row>
+                  <div class="title">标题</div>
+                  <el-col :span="24">
+                      <el-input v-model="title" placeholder="请输入秘密标题"></el-input>
+                  </el-col>
+                </el-row>
+                <el-row>
+                    <div class="title">内容</div>
+                    <el-col :span="24">
+                        <el-input v-model="content" placeholder="请输入秘密内容" type="textarea" rows="4"></el-input>
+                    </el-col>
+                </el-row>
+            </div>
+        </div>
+        <div class="button">
+            <el-button type="primary" @click="submit">提交</el-button>
+        </div>
+    </div>
+    <script src="https://unpkg.com/vue/dist/vue.js"></script>
+    <!-- import JavaScript -->
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <script type="text/javascript" src="./dist/nebulas.js"></script>
+    <script type="text/javascript" src="./dist/nebPay.js"></script>
+    <script type="text/javascript">
+        var dappContactAddress = "n1TNW7nZC6Y9md14AiqQLuPAVnnSu97QFTe";
+        var nebulas = require("nebulas"), Account = Account, neb = new nebulas.Neb();
+        neb.setRequest(new nebulas.HttpRequest("https://mainnet.nebulas.io"))
+        var NebPay = require("nebpay");     //https://github.com/nebulasio/nebPay
+        var nebPay = new NebPay();
+        var serialNumber
+        let secret = new Vue({
+            el: '#secret',
+            data(){
+                return {
+                    searchTitle: '',
+                    title: '',
+                    content: ''
+                }
+            },
+            methods: {
+                search(){
+                    if(this.searchTitle){
+                        let from = dappContactAddress
+                        let to = 'n1wZDhGWCU1457RQ9jRdNdvbXCXPBwzLVeU';
+                        let value = "0";
+                        let nonce = "0"
+                        let gas_price = "1000000"
+                        let gas_limit = "2000000"
+                        let callFunction = "get";
+                        let callArgs = "[\"" + this.searchTitle + "\"]";
+                        let contract  = {
+                            'function': callFunction,
+                            'args': callArgs
+                        }
+                        neb.api.call(from, to,value,nonce,gas_price,gas_limit, contract ).then((res) => {
+                            let data = res.result;
+                            if(data === 'null'){
+                                this.$alert('没有查询到有和你一样小秘密的标题','查找结果',{
+                                    confirmButtonText: '确定'
+                                })
+                            }else{
+                                data = JSON.parse(data);
+                                this.title = data.title;
+                                this.content = data.content;
+                            }
+                        }).catch(err => {
+                            console.log("error :" + err.message);
+                        })
+                    }else{
+                        this.$message({
+                            message: '搜索的标题不能为空哦',
+                            type: 'warning'
+                        })
+                        return
+                    }
+                },
+                submit(){
+                    if(this.title == '' || this.content == ''){
+                        this.$message({
+                            message: '秘密的标题和内容不能为空哦！',
+                            type: 'warning'
+                        })
+                        return
+                    }
+                    let to = dappContactAddress;
+                    let value = "0";
+                    let callFunction = "save";
+                    let callArgs = "[\"" + this.title + "\",\"" + this.content + "\"]";
+                    serialNumber = nebPay.call(to, value, callFunction, callArgs, {    //使用nebpay的call接口去调用合约,
+                        listener: function (res) {
+                            console.log("thecallback is " + res);
+                        }
+                    });
+                }
+            }
+        })
+    </script>
+</body>
+</html>
